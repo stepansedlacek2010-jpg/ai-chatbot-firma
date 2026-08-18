@@ -296,12 +296,28 @@ def call_openai_compatible(
     """Společná implementace pro OpenAI a pro Groq (OpenAI-kompatibilní API)."""
     client = openai.OpenAI(api_key=api_key, base_url=base_url) if base_url else openai.OpenAI(api_key=api_key)
     messages = [{"role": "system", "content": system_prompt}] + history
-    response = client.chat.completions.create(
-        model=model_id,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
+    try:
+        response = client.chat.completions.create(
+            model=model_id,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+    except UnicodeEncodeError as e:
+        # DOČASNÉ LADĚNÍ: zjistit, která hlavička obsahuje neascii znak.
+        bad_env = {k: v for k, v in os.environ.items() if not v.isascii()}
+        try:
+            default_headers = dict(client.default_headers)
+        except Exception as _e:
+            default_headers = f"<chyba při čtení default_headers: {_e}>"
+        try:
+            auth_headers = dict(client.auth_headers)
+        except Exception as _e:
+            auth_headers = f"<chyba při čtení auth_headers: {_e}>"
+        raise RuntimeError(
+            f"UnicodeEncodeError diagnostika — bad_env={bad_env!r} "
+            f"default_headers={default_headers!r} auth_headers={auth_headers!r}"
+        ) from e
     return (response.choices[0].message.content or "").strip()
 
 
