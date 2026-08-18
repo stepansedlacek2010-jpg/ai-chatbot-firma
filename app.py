@@ -9,8 +9,20 @@ Podporovaní poskytovatelé (zobrazí se jen ti, pro které je v secrets vyplně
   - OpenAI
 """
 
+import os
 import shutil
+import sys
 from pathlib import Path
+
+# Některá cloudová prostředí (např. Streamlit Community Cloud) nemají nastavenou
+# UTF-8 locale, takže výchozí kódování stdout/stderr je ASCII — jakýkoliv pokus
+# knihovny (httpx/openai/logging) zapsat český text pak spadne na
+# UnicodeEncodeError. Vynutíme UTF-8 hned na startu, nezávisle na locale hostu.
+os.environ.setdefault("PYTHONUTF8", "1")
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 import anthropic
 import google.generativeai as genai
