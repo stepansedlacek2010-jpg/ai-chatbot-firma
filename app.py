@@ -16,7 +16,7 @@ from pathlib import Path
 
 # Některá cloudová prostředí (např. Streamlit Community Cloud) nemají nastavenou
 # UTF-8 locale, takže výchozí kódování stdout/stderr je ASCII — jakýkoliv pokus
-# knihovny (httpx/openai/logging) zapsat český text pak spadne na
+# knihovny (httpx/openai/logging) zapsat nestandardní text pak spadne na
 # UnicodeEncodeError. Vynutíme UTF-8 hned na startu, nezávisle na locale hostu.
 os.environ.setdefault("PYTHONUTF8", "1")
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
@@ -41,32 +41,32 @@ from pypdf import PdfReader
 
 PROVIDERS = {
     "gemini": {
-        "label": "🟢 Google Gemini (zdarma)",
+        "label": "🟢 Google Gemini (free)",
         "secret_key": "GEMINI_API_KEY",
         "models": {
             # Pozn.: Gemini modely mají pravidelný deprecation cyklus (řádově měsíce) —
             # pokud model přestane fungovat, aktuální seznam je na ai.google.dev/gemini-api/docs/models.
-            "Gemini 3.7 Flash (rychlý, doporučeno)": "gemini-3.7-flash",
-            "Gemini 3.1 Pro (nejkvalitnější)": "gemini-3.1-pro-preview",
+            "Gemini 3.7 Flash (fast, recommended)": "gemini-3.7-flash",
+            "Gemini 3.1 Pro (highest quality)": "gemini-3.1-pro-preview",
         },
     },
     "groq": {
-        "label": "🟢 Groq (zdarma, velmi rychlý)",
+        "label": "🟢 Groq (free, very fast)",
         "secret_key": "GROQ_API_KEY",
         "models": {
             # Pozn.: Groq modely mají pravidelný deprecation cyklus (řádově měsíce) —
             # pokud model přestane fungovat, aktuální seznam je na console.groq.com/docs/models.
-            "GPT-OSS 120B (doporučeno)": "openai/gpt-oss-120b",
-            "GPT-OSS 20B (nejrychlejší)": "openai/gpt-oss-20b",
+            "GPT-OSS 120B (recommended)": "openai/gpt-oss-120b",
+            "GPT-OSS 20B (fastest)": "openai/gpt-oss-20b",
         },
     },
     "anthropic": {
         "label": "Anthropic Claude",
         "secret_key": "ANTHROPIC_API_KEY",
         "models": {
-            "Claude Sonnet 5 (doporučeno)": "claude-sonnet-5",
-            "Claude Opus 5 (nejvyšší kvalita)": "claude-opus-5",
-            "Claude Haiku 4.5 (nejrychlejší)": "claude-haiku-4-5",
+            "Claude Sonnet 5 (recommended)": "claude-sonnet-5",
+            "Claude Opus 5 (highest quality)": "claude-opus-5",
+            "Claude Haiku 4.5 (fastest)": "claude-haiku-4-5",
         },
     },
     "openai": {
@@ -82,9 +82,9 @@ PROVIDERS = {
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 DEFAULT_SYSTEM_PROMPT = (
-    "Jsi profesionální AI asistent pro malé firmy. Odpovídáš pouze na základě "
-    "poskytnutých dokumentů. Buď stručný, přátelský a profesionální. Pokud informace "
-    "nemáš, otevřeně to řekni a nabídni kontakt na člověka."
+    "You are a professional AI assistant for small businesses. You answer only based on "
+    "the documents provided. Be concise, friendly and professional. If you don't have the "
+    "information, say so openly and offer to put the user in touch with a member of staff."
 )
 
 VECTORSTORE_DIR = Path("vectorstore_data")
@@ -148,7 +148,7 @@ def process_uploaded_files(uploaded_files) -> tuple[list[Document], list[str]]:
 
     for f in uploaded_files:
         if f.size > MAX_FILE_SIZE_BYTES:
-            errors.append(f"„{f.name}“: soubor je příliš velký (max. {MAX_FILE_SIZE_MB} MB).")
+            errors.append(f'"{f.name}": file is too large (max. {MAX_FILE_SIZE_MB} MB).')
             continue
 
         ext = Path(f.name).suffix.lower()
@@ -160,16 +160,16 @@ def process_uploaded_files(uploaded_files) -> tuple[list[Document], list[str]]:
             elif ext in (".txt", ".md"):
                 docs = load_text(f, f.name)
             else:
-                errors.append(f"„{f.name}“: nepodporovaný formát souboru.")
+                errors.append(f'"{f.name}": unsupported file format.')
                 continue
 
             if not docs:
-                errors.append(f"„{f.name}“: nepodařilo se z dokumentu extrahovat žádný text.")
+                errors.append(f'"{f.name}": couldn\'t extract any text from this document.')
                 continue
 
             all_docs.extend(docs)
         except Exception as e:
-            errors.append(f"„{f.name}“: chyba při zpracování souboru ({e}).")
+            errors.append(f'"{f.name}": error processing file ({e}).')
 
     return all_docs, errors
 
@@ -230,9 +230,9 @@ def retrieve_context(query: str) -> tuple[str, list[dict]]:
     context_parts = []
     sources = []
     for doc in results:
-        source = doc.metadata.get("source", "neznámý dokument")
+        source = doc.metadata.get("source", "unknown document")
         page = doc.metadata.get("page")
-        label = f"{source}" + (f" (strana {page})" if page else "")
+        label = f"{source}" + (f" (page {page})" if page else "")
         context_parts.append(f"[{label}]\n{doc.page_content}")
         snippet = doc.page_content[:300].strip()
         sources.append({"label": label, "snippet": snippet + ("…" if len(doc.page_content) > 300 else "")})
@@ -244,17 +244,18 @@ def build_system_prompt(base_prompt: str, context: str) -> str:
     if context.strip():
         return (
             f"{base_prompt}\n\n"
-            "K dispozici máš následující výňatky z nahraných dokumentů. Odpovídej VÝHRADNĚ na "
-            "základě tohoto kontextu. Pokud odpověď v kontextu nenajdeš, otevřeně řekni: "
-            "„Nemám tuto informaci v dokumentech“ a nabídni kontakt na člověka. Neuváděj žádné "
-            "informace, které nejsou podložené kontextem. Nepiš do odpovědi žádné interní či "
-            "systémové značky (např. <thinking>).\n\n"
-            f"KONTEXT Z DOKUMENTŮ:\n{context}"
+            "You have the following excerpts from the uploaded documents available. Answer "
+            "STRICTLY based on this context. If the answer isn't in the context, say so openly: "
+            "\"I don't have this information in the documents\" and offer to put the user in "
+            "touch with a member of staff. Don't include any information that isn't supported "
+            "by the context. Don't include any internal or system tags in your reply "
+            "(e.g. <thinking>).\n\n"
+            f"CONTEXT FROM DOCUMENTS:\n{context}"
         )
     return (
         f"{base_prompt}\n\n"
-        "V knowledge base zatím nejsou žádné nahrané dokumenty. Informuj o tom uživatele a "
-        "požádej ho, aby nejprve nahrál soubory přes postranní panel."
+        "There are no documents uploaded to the knowledge base yet. Let the user know and ask "
+        "them to upload files via the sidebar first."
     )
 
 
@@ -278,10 +279,10 @@ def call_claude(model_id: str, system_prompt: str, history: list[dict], temperat
 
     if response.stop_reason == "refusal":
         detail = response.stop_details.explanation if response.stop_details else ""
-        return f"Odpověď nelze z bezpečnostních důvodů vygenerovat. {detail}".strip()
+        return f"The response could not be generated for safety reasons. {detail}".strip()
 
     text_parts = [block.text for block in response.content if block.type == "text"]
-    return "\n".join(text_parts).strip() or "Omlouvám se, nepodařilo se vygenerovat odpověď."
+    return "\n".join(text_parts).strip() or "Sorry, I couldn't generate a response."
 
 
 def call_openai_compatible(
@@ -305,10 +306,10 @@ def call_openai_compatible(
         )
     except UnicodeEncodeError as e:
         # API klíč obsahuje neascii znak — typicky proto, že v secrets zůstal
-        # placeholder text (např. "tvůj-klíč") místo skutečné hodnoty klíče.
+        # placeholder text (např. "your-key") místo skutečné hodnoty klíče.
         raise ValueError(
-            "API klíč obsahuje neplatné znaky. Zkontrolujte, že jste v secrets vyplnili "
-            "skutečný API klíč, a ne ukázkový placeholder text."
+            "The API key contains invalid characters. Please check that you've entered your "
+            "actual API key in secrets, not the example placeholder text."
         ) from e
     return (response.choices[0].message.content or "").strip()
 
@@ -338,11 +339,11 @@ def call_gemini(model_id: str, system_prompt: str, history: list[dict], temperat
         if response.prompt_feedback and response.prompt_feedback.block_reason:
             reason = response.prompt_feedback.block_reason
         return (
-            "Odpověď nelze zobrazit — pravděpodobně byla zablokována bezpečnostními filtry Gemini"
+            "The response can't be displayed — it was likely blocked by Gemini's safety filters"
             f"{f' ({reason})' if reason else ''}."
         )
 
-    return text.strip() or "Omlouvám se, nepodařilo se vygenerovat odpověď."
+    return text.strip() or "Sorry, I couldn't generate a response."
 
 
 def generate_answer(
@@ -362,139 +363,139 @@ def generate_answer(
             ), None
         if provider == "gemini":
             return call_gemini(model_id, system_prompt, history, temperature, max_tokens), None
-        return None, f"Neznámý poskytovatel: {provider}"
+        return None, f"Unknown provider: {provider}"
 
     # --- Anthropic chyby ---
     except anthropic.AuthenticationError:
-        return None, "Neplatný Anthropic API klíč. Zkontrolujte hodnotu ANTHROPIC_API_KEY v secrets."
+        return None, "Invalid Anthropic API key. Check the ANTHROPIC_API_KEY value in secrets."
     except anthropic.PermissionDeniedError:
-        return None, "Anthropic API klíč nemá oprávnění k použití tohoto modelu."
+        return None, "Your Anthropic API key doesn't have permission to use this model."
     except anthropic.NotFoundError:
-        return None, "Zadaný Claude model nebyl nalezen."
+        return None, "The specified Claude model was not found."
     except anthropic.RateLimitError:
-        return None, "Byl překročen limit požadavků na Anthropic API. Zkuste to prosím za chvíli."
+        return None, "The Anthropic API rate limit has been exceeded. Please try again shortly."
     except anthropic.APIConnectionError:
-        return None, "Nepodařilo se připojit k Anthropic API. Zkontrolujte internetové připojení."
+        return None, "Couldn't connect to the Anthropic API. Check your internet connection."
     except anthropic.APIStatusError as e:
-        return None, f"Chyba Anthropic API ({e.status_code}): {e.message}"
+        return None, f"Anthropic API error ({e.status_code}): {e.message}"
 
     # --- OpenAI / Groq chyby (Groq používá stejný SDK, tedy i stejné výjimky) ---
     except openai.AuthenticationError:
         key_name = "GROQ_API_KEY" if provider == "groq" else "OPENAI_API_KEY"
-        return None, f"Neplatný API klíč. Zkontrolujte hodnotu {key_name} v secrets."
+        return None, f"Invalid API key. Check the {key_name} value in secrets."
     except openai.RateLimitError:
-        return None, "Byl překročen limit požadavků na API. Zkuste to prosím za chvíli."
+        return None, "The API rate limit has been exceeded. Please try again shortly."
     except openai.APIConnectionError:
-        return None, "Nepodařilo se připojit k API. Zkontrolujte internetové připojení."
+        return None, "Couldn't connect to the API. Check your internet connection."
     except openai.APIStatusError as e:
-        return None, f"Chyba API: {e}"
+        return None, f"API error: {e}"
     except ValueError as e:
         return None, str(e)
 
     # --- Gemini chyby ---
     except google_exceptions.PermissionDenied:
-        return None, "Neplatný Gemini API klíč nebo nedostatečná oprávnění. Zkontrolujte hodnotu GEMINI_API_KEY v secrets."
+        return None, "Invalid Gemini API key or insufficient permissions. Check the GEMINI_API_KEY value in secrets."
     except google_exceptions.Unauthenticated:
-        return None, "Neplatný Gemini API klíč. Zkontrolujte hodnotu GEMINI_API_KEY v secrets."
+        return None, "Invalid Gemini API key. Check the GEMINI_API_KEY value in secrets."
     except google_exceptions.ResourceExhausted:
-        return None, "Byl překročen limit požadavků na Gemini API (free tier). Zkuste to prosím za chvíli."
+        return None, "The Gemini API rate limit has been exceeded (free tier). Please try again shortly."
     except google_exceptions.InvalidArgument as e:
-        return None, f"Neplatný požadavek na Gemini API: {e.message}"
+        return None, f"Invalid Gemini API request: {e.message}"
     except (google_exceptions.DeadlineExceeded, google_exceptions.ServiceUnavailable):
-        return None, "Nepodařilo se připojit ke Gemini API. Zkontrolujte internetové připojení."
+        return None, "Couldn't connect to the Gemini API. Check your internet connection."
     except google_exceptions.GoogleAPICallError as e:
-        return None, f"Chyba Gemini API: {e.message}"
+        return None, f"Gemini API error: {e.message}"
 
     except Exception as e:
-        return None, f"Neočekávaná chyba při generování odpovědi: {e}"
+        return None, f"Unexpected error while generating the response: {e}"
 
 
 # --- Streamlit UI ---
 
-st.set_page_config(page_title="AI Chatbot pro firmy", page_icon="💬", layout="wide")
+st.set_page_config(page_title="AI Chatbot for Business", page_icon="💬", layout="wide")
 
 if not AVAILABLE_PROVIDERS:
     key_list = "\n".join(f'{cfg["secret_key"]} = "..."' for cfg in PROVIDERS.values())
     st.error(
-        "**Chybí API klíč.**\n\n"
-        "Aplikace potřebuje alespoň jeden API klíč. Doporučujeme začít s Google Gemini nebo "
-        "Groq — oba mají free tarif. Přidejte klíč do souboru `.streamlit/secrets.toml` "
-        "v kořeni projektu:\n\n"
+        "**Missing API key.**\n\n"
+        "The app needs at least one API key. We recommend starting with Google Gemini or "
+        "Groq — both have a free tier. Add your key to the `.streamlit/secrets.toml` file "
+        "at the project root:\n\n"
         f"```toml\n{key_list}\n```\n\n"
-        "Stačí vyplnit jeden řádek. Na Streamlit Cloud přidejte klíč v nastavení aplikace "
-        "v sekci **Secrets**. Podrobný návod je v README.md."
+        "You only need to fill in one line. On Streamlit Cloud, add the key in the app "
+        "settings under **Secrets**. See README.md for detailed instructions."
     )
     st.stop()
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "vectorstore" not in st.session_state:
-    with st.spinner("Načítám znalostní bázi..."):
+    with st.spinner("Loading knowledge base..."):
         st.session_state.vectorstore = load_vectorstore_from_disk(get_embeddings())
 
 # --- Sidebar: nastavení ---
 
 with st.sidebar:
-    st.header("⚙️ Nastavení")
+    st.header("⚙️ Settings")
 
     provider_labels = {key: PROVIDERS[key]["label"] for key in AVAILABLE_PROVIDERS}
-    provider_choice_label = st.selectbox("Poskytovatel", list(provider_labels.values()))
+    provider_choice_label = st.selectbox("Provider", list(provider_labels.values()))
     provider = next(key for key, label in provider_labels.items() if label == provider_choice_label)
 
     model_options = PROVIDERS[provider]["models"]
     model_label = st.selectbox("Model", list(model_options.keys()))
     model_id = model_options[model_label]
 
-    temperature = st.slider("Teplota (kreativita)", 0.0, 1.0, 0.3, 0.05)
-    max_tokens = st.slider("Max. tokenů odpovědi", 256, 4096, 1024, 128)
+    temperature = st.slider("Temperature (creativity)", 0.0, 1.0, 0.3, 0.05)
+    max_tokens = st.slider("Max response tokens", 256, 4096, 1024, 128)
 
-    system_prompt = st.text_area("Systémový prompt", value=DEFAULT_SYSTEM_PROMPT, height=170)
+    system_prompt = st.text_area("System prompt", value=DEFAULT_SYSTEM_PROMPT, height=170)
 
     st.divider()
-    st.subheader("📚 Znalostní báze")
+    st.subheader("📚 Knowledge base")
 
     uploaded_files = st.file_uploader(
-        "Nahrát dokumenty (PDF, TXT, DOCX, MD)",
+        "Upload documents (PDF, TXT, DOCX, MD)",
         type=["pdf", "txt", "docx", "md"],
         accept_multiple_files=True,
     )
 
-    if st.button("📥 Zpracovat a přidat do znalostní báze", disabled=not uploaded_files, use_container_width=True):
-        with st.spinner("Zpracovávám a indexuji dokumenty..."):
+    if st.button("📥 Process and add to knowledge base", disabled=not uploaded_files, use_container_width=True):
+        with st.spinner("Processing and indexing documents..."):
             n_chunks, errors = index_documents(uploaded_files)
         for err in errors:
             st.warning(err)
         if n_chunks:
-            st.success(f"Přidáno {n_chunks} úseků textu z {len(uploaded_files)} souborů.")
+            st.success(f"Added {n_chunks} text chunks from {len(uploaded_files)} file(s).")
 
     n_indexed = st.session_state.vectorstore.index.ntotal if st.session_state.vectorstore else 0
-    st.caption(f"Aktuálně indexováno: **{n_indexed}** úseků textu")
+    st.caption(f"Currently indexed: **{n_indexed}** text chunks")
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🗑️ Smazat historii", use_container_width=True):
+        if st.button("🗑️ Clear history", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
     with col2:
-        if st.button("🗑️ Smazat KB", use_container_width=True):
+        if st.button("🗑️ Clear KB", use_container_width=True):
             delete_knowledge_base()
             st.rerun()
 
 # --- Hlavní chat ---
 
-st.title("💬 AI Chatbot pro firmy")
-st.caption("Odpovědi vycházejí výhradně z nahraných dokumentů.")
+st.title("💬 AI Chatbot for Business")
+st.caption("Answers are based solely on the uploaded documents.")
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         if msg.get("sources"):
-            with st.expander("📄 Zdroje"):
+            with st.expander("📄 Sources"):
                 for s in msg["sources"]:
                     st.markdown(f"**{s['label']}**")
                     st.caption(s["snippet"])
 
-user_input = st.chat_input("Zeptejte se na cokoliv z nahraných dokumentů...")
+user_input = st.chat_input("Ask anything about the uploaded documents...")
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -502,7 +503,7 @@ if user_input:
         st.markdown(user_input)
 
     with st.chat_message("assistant"):
-        with st.spinner("Přemýšlím..."):
+        with st.spinner("Thinking..."):
             context, sources = retrieve_context(user_input)
             full_system_prompt = build_system_prompt(system_prompt, context)
             history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
@@ -515,7 +516,7 @@ if user_input:
         else:
             st.markdown(answer)
             if sources:
-                with st.expander("📄 Zdroje"):
+                with st.expander("📄 Sources"):
                     for s in sources:
                         st.markdown(f"**{s['label']}**")
                         st.caption(s["snippet"])
