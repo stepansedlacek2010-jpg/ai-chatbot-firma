@@ -304,19 +304,11 @@ def call_openai_compatible(
             max_tokens=max_tokens,
         )
     except UnicodeEncodeError as e:
-        # DOČASNÉ LADĚNÍ: zjistit, která hlavička obsahuje neascii znak.
-        bad_env = {k: v for k, v in os.environ.items() if not v.isascii()}
-        try:
-            default_headers = dict(client.default_headers)
-        except Exception as _e:
-            default_headers = f"<chyba při čtení default_headers: {_e}>"
-        try:
-            auth_headers = dict(client.auth_headers)
-        except Exception as _e:
-            auth_headers = f"<chyba při čtení auth_headers: {_e}>"
-        raise RuntimeError(
-            f"UnicodeEncodeError diagnostika — bad_env={bad_env!r} "
-            f"default_headers={default_headers!r} auth_headers={auth_headers!r}"
+        # API klíč obsahuje neascii znak — typicky proto, že v secrets zůstal
+        # placeholder text (např. "tvůj-klíč") místo skutečné hodnoty klíče.
+        raise ValueError(
+            "API klíč obsahuje neplatné znaky. Zkontrolujte, že jste v secrets vyplnili "
+            "skutečný API klíč, a ne ukázkový placeholder text."
         ) from e
     return (response.choices[0].message.content or "").strip()
 
@@ -396,6 +388,8 @@ def generate_answer(
         return None, "Nepodařilo se připojit k API. Zkontrolujte internetové připojení."
     except openai.APIStatusError as e:
         return None, f"Chyba API: {e}"
+    except ValueError as e:
+        return None, str(e)
 
     # --- Gemini chyby ---
     except google_exceptions.PermissionDenied:
@@ -412,10 +406,7 @@ def generate_answer(
         return None, f"Chyba Gemini API: {e.message}"
 
     except Exception as e:
-        # DOČASNÉ LADĚNÍ: úplný traceback přímo v UI, abychom našli přesné místo chyby.
-        import traceback
-        tb = traceback.format_exc()
-        return None, f"Neočekávaná chyba při generování odpovědi: {e}\n\n```\n{tb}\n```"
+        return None, f"Neočekávaná chyba při generování odpovědi: {e}"
 
 
 # --- Streamlit UI ---
