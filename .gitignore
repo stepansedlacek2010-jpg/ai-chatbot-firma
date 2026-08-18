@@ -1,0 +1,11 @@
+# Secrets — nikdy necommitovat
+.streamlit/secrets.toml
+
+# Lokální znalostní báze (FAISS index)
+vectorstore_data/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/

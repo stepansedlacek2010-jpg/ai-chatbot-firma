@@ -1,0 +1,25 @@
+# --- Web UI ---
+streamlit>=1.38.0
+
+# --- LLM SDK ---
+google-generativeai>=0.8.0
+anthropic>=0.40.0
+openai>=1.50.0
+# Pozn.: Groq nemá vlastní SDK v tomto projektu — používá se stejný "openai"
+# balíček výše, jen s jiným base_url (OpenAI-kompatibilní API).
+
+# --- LangChain (orchestrace RAG: loadery, splitter, vectorstore) ---
+langchain>=0.3.0
+langchain-community>=0.3.0
+langchain-huggingface>=0.1.0
+langchain-text-splitters>=0.3.0
+
+# --- Vektorová databáze ---
+faiss-cpu>=1.8.0
+
+# --- Embeddingy (lokální, bez API klíče) ---
+sentence-transformers>=3.0.0
+
+# --- Načítání dokumentů ---
+pypdf>=4.3.0
+python-docx>=1.1.0
