@@ -396,7 +396,10 @@ def generate_answer(
         return None, f"Chyba Gemini API: {e.message}"
 
     except Exception as e:
-        return None, f"Neočekávaná chyba při generování odpovědi: {e}"
+        # DOČASNÉ LADĚNÍ: úplný traceback přímo v UI, abychom našli přesné místo chyby.
+        import traceback
+        tb = traceback.format_exc()
+        return None, f"Neočekávaná chyba při generování odpovědi: {e}\n\n```\n{tb}\n```"
 
 
 # --- Streamlit UI ---
